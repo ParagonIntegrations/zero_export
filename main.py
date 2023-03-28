@@ -243,18 +243,37 @@ class ExportController(object):
 
 if __name__ == "__main__":
 
-    # Create a rotating logger
+    # # Create a rotating logger
+    # def create_rotating_log(path):
+    #     # Create the logger
+    #     logger = logging.getLogger("Zero_Export")
+    #     logger.setLevel(logging.INFO)
+    #     # Create a rotating handler
+    #     handler = RotatingFileHandler(path, maxBytes=5242880, backupCount=1)
+    #     # Create a formatter and add to handler
+    #     formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    #     handler.setFormatter(formatter)
+    #     # Add the handler to the logger
+    #     logger.addHandler(handler)
+    #     return logger
+
     def create_rotating_log(path):
         # Create the logger
-        logger = logging.getLogger("Main Log")
-        logger.setLevel(logging.INFO)
-        # Create a rotating handler
-        handler = RotatingFileHandler(path, maxBytes=5242880, backupCount=1)
-        # Create a formatter and add to handler
+        logger = logging.getLogger('Zero_Export')
+        logger.setLevel(logging.DEBUG)
+        # Create a rotating filehandler
+        filehandler = RotatingFileHandler(path, maxBytes=5242880, backupCount=1)
+        filehandler.setLevel(logging.INFO)
+        # Create a streamhandler to print to console
+        consolehandler = logging.StreamHandler()
+        consolehandler.setLevel(logging.DEBUG)
+        # Create a formatter and add to filehandler and consolehandler
         formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-        handler.setFormatter(formatter)
-        # Add the handler to the logger
-        logger.addHandler(handler)
+        filehandler.setFormatter(formatter)
+        consolehandler.setFormatter(formatter)
+        # Add the filehandler and consolehandler to the logger
+        logger.addHandler(filehandler)
+        logger.addHandler(consolehandler)
         return logger
 
     # setup the logger
