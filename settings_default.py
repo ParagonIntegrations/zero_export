@@ -29,8 +29,10 @@ servicesdict = {
                     'Path': "/Ac/ActiveIn/ActiveInput",
                     'Proxy': object,
                     'Value': 0},
-    'Phases':{
-        'L1': {
+}
+
+vicdict = {
+    'L1': {
             'InPower': {'Service': "com.victronenergy.vebus.ttyS4",
                           'Path': "/Ac/ActiveIn/L1/P",
                           'Proxy': object,
@@ -39,7 +41,7 @@ servicesdict = {
                            'Path': "/Ac/Out/L1/P",
                            'Proxy': object,
                            'Value': 0}},
-        'L2': {
+    'L2': {
             'InPower': {'Service': "com.victronenergy.vebus.ttyS4",
                           'Path': "/Ac/ActiveIn/L2/P",
                           'Proxy': object,
@@ -48,7 +50,6 @@ servicesdict = {
                            'Path': "/Ac/Out/L2/P",
                            'Proxy': object,
                            'Value': 0}},
-            }
 }
 
 pvdict = {

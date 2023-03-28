@@ -11,7 +11,7 @@ import datetime
 import logging
 import copy
 from logging.handlers import RotatingFileHandler
-from settings import settingsdict, servicesdict, pvdict, donotcalclist # Change this for production
+from settings import settingsdict, servicesdict, vicdict, pvdict, donotcalclist # Change this for production
 
 sys.path.insert(1, os.path.join(os.path.dirname(__file__), 'ext', 'velib_python'))
 from vedbus import VeDbusItemImport
@@ -25,6 +25,7 @@ class ExportController(object):
         self.bus = bus
         self.settings = copy.deepcopy(settingsdict)
         self.dbusservices = copy.deepcopy(servicesdict)
+        self.vicservices = copy.deepcopy(vicdict)
         self.pvservices = copy.deepcopy(pvdict)
         self.donotcalc = copy.deepcopy(donotcalclist)
 
@@ -50,6 +51,20 @@ class ExportController(object):
             except:
                 mainlogger.error('Exception in setting up dbus service %s' % service)
                 self.unavailableservices.append(service)
+
+        # Also set up the victron inverters
+        for line in self.vicservices:
+            for inverter, invservices in self.vicservices[line].items():
+                try:
+                    for service in invservices:
+                        invservices[service]['Proxy'] = VeDbusItemImport(
+                            bus=self.bus,
+                            serviceName=invservices[service]['Service'],
+                            path=invservices[service]['Path'],
+                            eventCallback=self.update_values,
+                            createsignal=True)
+                except:
+                    mainlogger.error('Exception in setting up victron inverter %s' % inverter)
 
         # Also set up the pv inverter services
         for line in self.pvservices:
@@ -81,6 +96,22 @@ class ExportController(object):
                     mainlogger.warning('Non numeric value on %s' % service)
                     # Use the default value as in settings.py
                     self.dbusservices[service]['Value'] = servicesdict[service]['Value']
+
+        # Update the victron services
+        for line in self.vicservices:
+            for inverter, invservices in self.pvservices[line].items():
+                for service in invservices:
+                    try:
+                        invservices[service]['Value'] = invservices[service]['Proxy'].get_value()
+                    except dbus.DBusException:
+                        mainlogger.warning('Exception in getting dbus service %s for %s' % (service, inverter))
+                    try:
+                        invservices[service]['Value'] *= 1
+                    except:
+                        mainlogger.warning('Non numeric value on %s' % service)
+                        # Use the default value as in settings.py
+                        invservices[service]['Value'] = vicdict[line]['Inverters'][inverter][service]['Value']
+
         # Update the pvservices dictionary
         for line in self.pvservices:
             for inverter, invservices in self.pvservices[line]['Inverters'].items():
@@ -200,10 +231,7 @@ class ExportController(object):
     def do_calcs(self):
 
         # Setup variables
-        weekend = False
         soc = self.dbusservices['Soc']['Value']
-        invdict = self.dbusservices['Phases']
-
 
         mainlogger.debug('SOC: %s' % soc)
 
@@ -219,9 +247,9 @@ class ExportController(object):
                              * (self.settings['MaxThrottleBuffer'] - self.settings['MinThrottleBuffer']) \
                              + self.settings['MinThrottleBuffer']
 
-        for phase in invdict.keys():
+        for phase in self.vicservices.keys():
             inv_count = max(len(self.pvservices[phase]['Inverters']), 1)
-            powerlimit = (invdict[phase]['OutPower']['Value'] - throttleamount) / inv_count
+            powerlimit = (self.vicservices[phase]['OutPower']['Value'] - throttleamount) / inv_count
             powerlimit = max(powerlimit, 0)
 
             for inverter, invservices in self.pvservices[phase]['Inverters'].items():
