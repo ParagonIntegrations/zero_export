@@ -119,6 +119,7 @@ class ExportController(object):
                     path=dictionary[service]['Path'],
                     eventCallback=None,
                     createsignal=False).set_value(value)
+                mainlogger.info(f'Successfully set {service} to value of {value}')
             except dbus.DBusException:
                 mainlogger.warning('Exception in setting dbus service %s' % service)
 
