@@ -38,7 +38,7 @@ vicdict = {
                           'Proxy': object,
                           'Value': 0},
             'OutPower': {'Service': "com.victronenergy.system",
-                           'Path': "Ac/Consumption/L1/Power",
+                           'Path': "/Ac/Consumption/L1/Power",
                            'Proxy': object,
                            'Value': 0}},
     'L2': {
@@ -47,7 +47,7 @@ vicdict = {
                           'Proxy': object,
                           'Value': 0},
             'OutPower': {'Service': "com.victronenergy.system",
-                           'Path': "Ac/Consumption/L2/Power",
+                           'Path': "/Ac/Consumption/L2/Power",
                            'Proxy': object,
                            'Value': 0}},
 }
