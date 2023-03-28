@@ -64,6 +64,8 @@ class ExportController(object):
                             createsignal=True)
                 except:
                     mainlogger.error('Exception in setting up victron inverter on %s' % line)
+                    mainlogger.debug(f'line: {line}, service {service}.')
+                    mainlogger.debug(f'{self.vicservices}')
 
         # Also set up the pv inverter services
         for line in self.pvservices:
