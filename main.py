@@ -32,6 +32,7 @@ class ExportController(object):
         self.prevruntime = datetime.datetime.now()
         self.unavailableservices = []
         self.unavailablepvinverters = []
+        self.unavailablevicservices = []
         self.pvcontrollable = True # TODO make this a true check later
         self.rescan_service_time = datetime.datetime.now()
 
@@ -64,8 +65,9 @@ class ExportController(object):
                             createsignal=True)
                 except:
                     mainlogger.error('Exception in setting up victron inverter on %s' % line)
-                    mainlogger.error(f'line: {line}, service {service}.')
-                    mainlogger.error(f'{self.vicservices}')
+                    self.unavailablevicservices.append(line)
+                    mainlogger.debug(f'line: {line}, service {service}.')
+                    mainlogger.debug(f'{self.vicservices}')
 
         # Also set up the pv inverter services
         for line in self.pvservices:
@@ -100,17 +102,18 @@ class ExportController(object):
 
         # Update the victron services
         for line in self.vicservices:
-            for service in self.vicservices[line].keys():
-                try:
-                    self.vicservices[line][service]['Value'] = self.vicservices[line][service]['Proxy'].get_value()
-                except dbus.DBusException:
-                    mainlogger.warning('Exception in getting dbus service %s' % service)
-                try:
-                    self.vicservices[line][service]['Value'] *= 1
-                except:
-                    mainlogger.warning('Non numeric value on %s' % service)
-                    # Use the default value as in settings.py
-                    self.vicservices[line][service]['Value'] = vicdict[line][service]['Value']
+            if line not in self.unavailablevicservices:
+                for service in self.vicservices[line].keys():
+                    try:
+                        self.vicservices[line][service]['Value'] = self.vicservices[line][service]['Proxy'].get_value()
+                    except dbus.DBusException:
+                        mainlogger.warning('Exception in getting dbus service %s' % service)
+                    try:
+                        self.vicservices[line][service]['Value'] *= 1
+                    except:
+                        mainlogger.warning('Non numeric value on %s' % service)
+                        # Use the default value as in settings.py
+                        self.vicservices[line][service]['Value'] = vicdict[line][service]['Value']
 
         # Update the pvservices dictionary
         for line in self.pvservices:
@@ -299,7 +302,7 @@ if __name__ == "__main__":
         consolehandler.setFormatter(formatter)
         # Add the filehandler and consolehandler to the logger
         logger.addHandler(filehandler)
-        logger.addHandler(consolehandler)
+        # logger.addHandler(consolehandler)
         return logger
 
     # setup the logger
