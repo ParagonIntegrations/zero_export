@@ -25,26 +25,26 @@ servicesdict = {
             'Path': "/Dc/Battery/Soc",
             'Proxy': object,
             'Value': 80},
-    'InputSource': {'Service': "com.victronenergy.vebus.ttyO1",
+    'InputSource': {'Service': "com.victronenergy.vebus.ttyS4",
                     'Path': "/Ac/ActiveIn/ActiveInput",
                     'Proxy': object,
                     'Value': 0},
     'Phases':{
         'L1': {
-            'InPower': {'Service': "com.victronenergy.vebus.ttyO1",
+            'InPower': {'Service': "com.victronenergy.vebus.ttyS4",
                           'Path': "/Ac/ActiveIn/L1/P",
                           'Proxy': object,
                           'Value': 0},
-            'OutPower': {'Service': "com.victronenergy.vebus.ttyO1",
+            'OutPower': {'Service': "com.victronenergy.vebus.ttyS4",
                            'Path': "/Ac/Out/L1/P",
                            'Proxy': object,
                            'Value': 0}},
         'L2': {
-            'InPower': {'Service': "com.victronenergy.vebus.ttyO1",
+            'InPower': {'Service': "com.victronenergy.vebus.ttyS4",
                           'Path': "/Ac/ActiveIn/L2/P",
                           'Proxy': object,
                           'Value': 0},
-            'OutPower': {'Service': "com.victronenergy.vebus.ttyO1",
+            'OutPower': {'Service': "com.victronenergy.vebus.ttyS4",
                            'Path': "/Ac/Out/L2/P",
                            'Proxy': object,
                            'Value': 0}},
@@ -53,7 +53,11 @@ servicesdict = {
 
 pvdict = {
     'L1': {
-        'InverterList': ['pv_77_1064614'], # This should look something like this: [pv_77_1028252, pv_77_1028251]
+        'InverterList': ['pv_76_1148833'], # This should look something like this: [pv_77_1028252, pv_77_1028251]
+        'Inverters': {},
+    },
+    'L2': {
+        'InverterList': ['pv_76_1148698'], # This should look something like this: [pv_77_1028252, pv_77_1028251]
         'Inverters': {},
     },
 }
