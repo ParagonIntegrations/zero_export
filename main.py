@@ -54,17 +54,16 @@ class ExportController(object):
 
         # Also set up the victron inverters
         for line in self.vicservices:
-            for inverter, invservices in self.vicservices[line].items():
                 try:
-                    for service in invservices:
-                        invservices[service]['Proxy'] = VeDbusItemImport(
+                    for service in self.vicservices[line].keys():
+                        self.vicservices[line][service]['Proxy'] = VeDbusItemImport(
                             bus=self.bus,
-                            serviceName=invservices[service]['Service'],
-                            path=invservices[service]['Path'],
+                            serviceName=self.vicservices[line][service]['Service'],
+                            path=self.vicservices[line][service]['Path'],
                             eventCallback=self.update_values,
                             createsignal=True)
                 except:
-                    mainlogger.error('Exception in setting up victron inverter %s' % inverter)
+                    mainlogger.error('Exception in setting up victron inverter on %s' % line)
 
         # Also set up the pv inverter services
         for line in self.pvservices:
@@ -99,18 +98,17 @@ class ExportController(object):
 
         # Update the victron services
         for line in self.vicservices:
-            for inverter, invservices in self.pvservices[line].items():
-                for service in invservices:
-                    try:
-                        invservices[service]['Value'] = invservices[service]['Proxy'].get_value()
-                    except dbus.DBusException:
-                        mainlogger.warning('Exception in getting dbus service %s for %s' % (service, inverter))
-                    try:
-                        invservices[service]['Value'] *= 1
-                    except:
-                        mainlogger.warning('Non numeric value on %s' % service)
-                        # Use the default value as in settings.py
-                        invservices[service]['Value'] = vicdict[line]['Inverters'][inverter][service]['Value']
+            for service in self.vicservices[line].keys():
+                try:
+                    self.vicservices[line][service]['Value'] = self.vicservices[line][service]['Proxy'].get_value()
+                except dbus.DBusException:
+                    mainlogger.warning('Exception in getting dbus service %s' % service)
+                try:
+                    self.vicservices[line][service]['Value'] *= 1
+                except:
+                    mainlogger.warning('Non numeric value on %s' % service)
+                    # Use the default value as in settings.py
+                    self.vicservices[line][service]['Value'] = vicdict[line][service]['Value']
 
         # Update the pvservices dictionary
         for line in self.pvservices:
