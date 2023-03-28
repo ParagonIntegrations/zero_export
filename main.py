@@ -28,14 +28,9 @@ class ExportController(object):
         self.pvservices = copy.deepcopy(pvdict)
         self.donotcalc = copy.deepcopy(donotcalclist)
 
-        self.safetylistcounter = 0
-        self.outputpowerlist = [0 for i in range(0, self.settings['Safety']['BuildupIterations'])]
         self.prevruntime = datetime.datetime.now()
         self.unavailableservices = []
         self.unavailablepvinverters = []
-        self.powerlimit = 0
-        self.throttleactive = False
-        self.insurplus = 0
         self.pvcontrollable = True # TODO make this a true check later
         self.rescan_service_time = datetime.datetime.now()
 
