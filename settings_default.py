@@ -37,8 +37,8 @@ vicdict = {
                           'Path': "/Ac/ActiveIn/L1/P",
                           'Proxy': object,
                           'Value': 0},
-            'OutPower': {'Service': "com.victronenergy.vebus.ttyS4",
-                           'Path': "/Ac/Out/L1/P",
+            'OutPower': {'Service': "com.victronenergy.system",
+                           'Path': "Ac/Consumption/L1/Power",
                            'Proxy': object,
                            'Value': 0}},
     'L2': {
@@ -46,8 +46,8 @@ vicdict = {
                           'Path': "/Ac/ActiveIn/L2/P",
                           'Proxy': object,
                           'Value': 0},
-            'OutPower': {'Service': "com.victronenergy.vebus.ttyS4",
-                           'Path': "/Ac/Out/L2/P",
+            'OutPower': {'Service': "com.victronenergy.system",
+                           'Path': "Ac/Consumption/L2/Power",
                            'Proxy': object,
                            'Value': 0}},
 }
