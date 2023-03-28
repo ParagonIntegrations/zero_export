@@ -297,7 +297,7 @@ if __name__ == "__main__":
         consolehandler.setFormatter(formatter)
         # Add the filehandler and consolehandler to the logger
         logger.addHandler(filehandler)
-        logger.addHandler(consolehandler)
+        # logger.addHandler(consolehandler)
         return logger
 
     # setup the logger
