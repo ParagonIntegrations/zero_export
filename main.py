@@ -143,7 +143,7 @@ class ExportController(object):
                     path=dictionary[service]['Path'],
                     eventCallback=None,
                     createsignal=False).set_value(value)
-                mainlogger.info(f'Successfully set {service} to value of {value}')
+                mainlogger.debug(f'Successfully set {service} to value of {value}')
             except dbus.DBusException:
                 mainlogger.warning('Exception in setting dbus service %s' % service)
 
@@ -239,17 +239,19 @@ class ExportController(object):
         # Calculate the amount to throttle
         if soc < self.settings['ThrottleMinSoc']:
             throttleamount = self.settings['MinThrottleBuffer']
+            mainlogger.debug(f'Soc is less than ThrottleMinSoc using throttleamount of {throttleamount}')
         else:
             throttleamount = (soc - self.settings['ThrottleMinSoc']) \
                              / (self.settings['ThrottleMaxSoc'] - self.settings['ThrottleMinSoc']) \
                              * (self.settings['MaxThrottleBuffer'] - self.settings['MinThrottleBuffer']) \
                              + self.settings['MinThrottleBuffer']
+            mainlogger.debug(f'Soc is more than {self.settings["ThrottleMinSoc"]} using throttleamount of {throttleamount}')
 
         for phase in self.vicservices.keys():
             inv_count = max(len(self.pvservices[phase]['Inverters']), 1)
             powerlimit = (self.vicservices[phase]['OutPower']['Value'] - throttleamount) / inv_count
             powerlimit = max(powerlimit, 0)
-
+            mainlogger.debug(f"With outpower of {self.vicservices[phase]['OutPower']['Value']} on {phase} and {inv_count} pv inverters the powerlimit is {powerlimit}")
             for inverter, invservices in self.pvservices[phase]['Inverters'].items():
                 if inverter not in self.unavailablepvinverters:
                     self.set_value('PowerLimit', powerlimit, invservices)
