@@ -64,8 +64,8 @@ class ExportController(object):
                             createsignal=True)
                 except:
                     mainlogger.error('Exception in setting up victron inverter on %s' % line)
-                    mainlogger.debug(f'line: {line}, service {service}.')
-                    mainlogger.debug(f'{self.vicservices}')
+                    mainlogger.error(f'line: {line}, service {service}.')
+                    mainlogger.error(f'{self.vicservices}')
 
         # Also set up the pv inverter services
         for line in self.pvservices:
@@ -289,7 +289,7 @@ if __name__ == "__main__":
         logger.setLevel(logging.DEBUG)
         # Create a rotating filehandler
         filehandler = RotatingFileHandler(path, maxBytes=5242880, backupCount=1)
-        filehandler.setLevel(logging.INFO)
+        filehandler.setLevel(logging.DEBUG)
         # Create a streamhandler to print to console
         consolehandler = logging.StreamHandler()
         consolehandler.setLevel(logging.DEBUG)
@@ -299,7 +299,7 @@ if __name__ == "__main__":
         consolehandler.setFormatter(formatter)
         # Add the filehandler and consolehandler to the logger
         logger.addHandler(filehandler)
-        # logger.addHandler(consolehandler)
+        logger.addHandler(consolehandler)
         return logger
 
     # setup the logger
