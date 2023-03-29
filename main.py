@@ -242,7 +242,10 @@ class ExportController(object):
         self.prevruntime = datetime.datetime.now()
 
         # Calculate the amount to throttle
-        if soc < self.settings['ThrottleMinSoc']:
+        if soc <= self.settings['NoThrottleSoc']:
+            throttleamount = self.settings['NoThrottleBuffer']
+            mainlogger.debug(f'Soc is less than NoThrottleSoc using throttleamount of {throttleamount}')
+        elif soc <= self.settings['ThrottleMinSoc']:
             throttleamount = self.settings['MinThrottleBuffer']
             mainlogger.debug(f'Soc is less than ThrottleMinSoc using throttleamount of {throttleamount}')
         else:

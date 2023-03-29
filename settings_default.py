@@ -4,8 +4,9 @@ import copy
 settingsdict = {
     'MaxSleepTime': 5,
     'LoopCheckTime': 1,
-    'InvertMinSoc': 96,
-    'MinThrottleBuffer': 150,
+    'NoThrottleSoc': 96,
+    'NoThrottleBuffer': -1000,
+    'MinThrottleBuffer': 0,
     'ThrottleMinSoc': 97,
     'ThrottleMaxSoc': 99,  # This needs to be more than ThrottleMinSoc
     'MaxThrottleBuffer': 5000,  # This needs to be more than MinThrottleBuffer
