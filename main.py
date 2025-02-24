@@ -247,7 +247,7 @@ class ExportController(object):
             mainlogger.debug(f'Soc is less than NoThrottleSoc using throttleamount of {throttleamount}')
         else:
             throttleamount = soc - self.settings['ThrottleBuffer']
-            mainlogger.debug(f'Soc is more than {self.settings["ThrottleMinSoc"]} using throttleamount of {throttleamount}')
+            mainlogger.debug(f'Soc is more than {self.settings["NoThrottleSoc"]} using throttleamount of {throttleamount}')
 
         for phase in self.vicservices.keys():
             inv_count = max(len(self.pvservices[phase]['Inverters']), 1)
