@@ -246,7 +246,7 @@ class ExportController(object):
             throttleamount = self.settings['NoThrottleBuffer']
             mainlogger.debug(f'Soc is less than NoThrottleSoc using throttleamount of {throttleamount}')
         else:
-            throttleamount = soc - self.settings['ThrottleBuffer']
+            throttleamount = self.settings['ThrottleBuffer']
             mainlogger.debug(f'Soc is more than {self.settings["NoThrottleSoc"]} using throttleamount of {throttleamount}')
 
         for phase in self.vicservices.keys():
