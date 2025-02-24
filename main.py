@@ -245,14 +245,8 @@ class ExportController(object):
         if soc <= self.settings['NoThrottleSoc']:
             throttleamount = self.settings['NoThrottleBuffer']
             mainlogger.debug(f'Soc is less than NoThrottleSoc using throttleamount of {throttleamount}')
-        elif soc <= self.settings['ThrottleMinSoc']:
-            throttleamount = self.settings['MinThrottleBuffer']
-            mainlogger.debug(f'Soc is less than ThrottleMinSoc using throttleamount of {throttleamount}')
         else:
-            throttleamount = (soc - self.settings['ThrottleMinSoc']) \
-                             / (self.settings['ThrottleMaxSoc'] - self.settings['ThrottleMinSoc']) \
-                             * (self.settings['MaxThrottleBuffer'] - self.settings['MinThrottleBuffer']) \
-                             + self.settings['MinThrottleBuffer']
+            throttleamount = soc - self.settings['ThrottleBuffer']
             mainlogger.debug(f'Soc is more than {self.settings["ThrottleMinSoc"]} using throttleamount of {throttleamount}')
 
         for phase in self.vicservices.keys():
