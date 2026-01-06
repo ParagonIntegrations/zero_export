@@ -3,9 +3,9 @@ import copy
 
 settingsdict = {
     'LoopCheckTime': 1,
-    'NoThrottleSoc': 96,
+    'NoThrottleSoc': 95,
     'MinThrottleBuffer': 0,
-    'ThrottleMaxSoc': 99,  # This needs to be more than ThrottleMinSoc
+    'ThrottleMaxSoc': 97,  # This needs to be more than ThrottleMinSoc
     'RescanServiceInterval': datetime.timedelta(minutes=1),
     'BatteryMaxCharge': 10000,
 }
@@ -68,10 +68,3 @@ for line in pvdict:
         pvdict[line]['Inverters'][inverter] = copy.deepcopy(pv_services_structure)
         for setting in pvdict[line]['Inverters'][inverter]:
             pvdict[line]['Inverters'][inverter][setting]['Service'] += '.' + inverter
-
-
-# TODO change this to a dictionary so that the name can be included
-donotcalclist = [
-    "/Settings/CGwacs/AcPowerSetPoint",
-    "/Ac/PowerLimit"
-]

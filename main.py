@@ -187,6 +187,7 @@ class ExportController(object):
             consumption += self.vicservices[phase]['OutPower']['Value']
 
         excess_pv = max(0, total_pv_prod - consumption)
+        mainlogger.debug(f'{total_pv_prod=}, {total_pv_capacity=}, {consumption=}, {excess_pv=}')
 
         if excess_pv > 0:
             # Calculate the amount to throttle
