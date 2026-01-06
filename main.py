@@ -61,7 +61,7 @@ class ExportController(object):
                             bus=self.bus,
                             serviceName=self.vicservices[line][service]['Service'],
                             path=self.vicservices[line][service]['Path'],
-                            eventCallback=self.update_values,
+                            eventCallback=None,
                             createsignal=True)
                 except:
                     mainlogger.error('Exception in setting up victron inverter on %s' % line)
@@ -78,13 +78,13 @@ class ExportController(object):
                             bus=self.bus,
                             serviceName=invservices[service]['Service'],
                             path=invservices[service]['Path'],
-                            eventCallback=self.update_values,
+                            eventCallback=None,
                             createsignal=True)
                 except:
                     mainlogger.error('Exception in setting up pv inverter %s' % inverter)
                     self.unavailablepvinverters.append(inverter)
 
-    def update_values(self, name, path, changes):
+    def update_values(self):
 
         # Update the dbusservices dictionary
         for service in self.dbusservices:
@@ -93,6 +93,7 @@ class ExportController(object):
                     self.dbusservices[service]['Value'] = self.dbusservices[service]['Proxy'].get_value()
                 except dbus.DBusException:
                     mainlogger.warning('Exception in getting dbus service %s' % service)
+                    self.dbusservices[service]['Value'] = servicesdict[service]['Value']
                 try:
                     self.dbusservices[service]['Value'] *= 1
                 except:
@@ -108,6 +109,7 @@ class ExportController(object):
                         self.vicservices[line][service]['Value'] = self.vicservices[line][service]['Proxy'].get_value()
                     except dbus.DBusException:
                         mainlogger.warning('Exception in getting dbus service %s' % service)
+                        self.vicservices[line][service]['Value'] = vicdict[line][service]['Value']
                     try:
                         self.vicservices[line][service]['Value'] *= 1
                     except:
@@ -124,6 +126,7 @@ class ExportController(object):
                             invservices[service]['Value'] = invservices[service]['Proxy'].get_value()
                         except dbus.DBusException:
                             mainlogger.warning('Exception in getting dbus service %s for %s' % (service, inverter))
+                            invservices[service]['Value'] = pvdict[line]['Inverters'][inverter][service]['Value']
                         try:
                             invservices[service]['Value'] *= 1
                         except:
@@ -131,9 +134,9 @@ class ExportController(object):
                             # Use the default value as in settings.py
                             invservices[service]['Value'] = pvdict[line]['Inverters'][inverter][service]['Value']
 
-        # Do not do calculations on this list
-        if path not in self.donotcalc:
-            self.do_calcs()
+        # # Do not do calculations on this list
+        # if path not in self.donotcalc:
+        #     self.do_calcs()
 
     def set_value(self, service, value, dictionary = None):
         # TODO this is a temporary fix, remove the default value later
@@ -152,117 +155,62 @@ class ExportController(object):
             except dbus.DBusException:
                 mainlogger.warning('Exception in setting dbus service %s' % service)
 
-
-    # def control_pv(self, soc):
-    #
-    #     # Update the pv inverter combined list
-    #     solartotals = {}
-    #     for line in self.pvservices:
-    #         solartotals[line] = {'Power': 0, 'MaxPower': 0}
-    #         for inverter, invservices in self.pvservices[line]['Inverters'].items():
-    #             if inverter not in self.unavailablepvinverters:
-    #                 solartotals[line]['Power'] += invservices['Power']['Value']
-    #                 solartotals[line]['MaxPower'] += invservices['MaxPower']['Value']
-    #         mainlogger.debug('PV total power: %s' % solartotals[line]['Power'])
-    #         mainlogger.debug('PV Max available power: %s' % solartotals[line]['MaxPower'])
-    #
-    #     # Control the fronius inverter to prevent feed in
-    #     if self.dbusservices['L1InPower']['Value'] < self.settings['MinInPower'] - self.settings['ThrottleBuffer']:
-    #         self.powerlimit = solartotals['L1']['Power'] \
-    #                           - (self.settings['MinInPower']
-    #                              - self.dbusservices['L1InPower']['Value']
-    #                              + self.settings['OverThrottle'])
-    #         self.throttleactive = True
-    #         self.insurplus = self.settings['MinInPower'] \
-    #                          + self.settings['OverThrottle'] \
-    #                          - self.dbusservices['L1InPower']['Value']
-    #         mainlogger.debug('Starting to throttle')
-    #     # Increase the powerlimit so that we can utilize the solar power
-    #     elif self.throttleactive:
-    #         self.powerlimit = self.powerlimit + self.settings['ThrottleBuffer']
-    #         self.insurplus = max(self.insurplus - self.settings['ThrottleBuffer'], 0)
-    #         mainlogger.debug('Increasing PV power slowly and reducing insurplus')
-    #         if solartotals['L1']['Power'] < self.powerlimit + (2 * self.settings['ThrottleBuffer']):
-    #             self.throttleactive = False
-    #             self.insurplus = 0
-    #             mainlogger.debug('Throttling no longer required')
-    #     # Keep limiting the inverter to a value slightly higher than the current power to prevent spikes in solar power
-    #     # even when there is no need for actual throttling
-    #     if not self.throttleactive:
-    #         self.powerlimit = solartotals['L1']['Power'] + self.settings['ThrottleBuffer']
-    #     # Strongly throttle the inverter once the strongthrottle SOC has been reached
-    #     if soc >= self.settings['StrongThrottleMinSoc']:
-    #         strongthrottlevalue = (soc - self.settings['StrongThrottleMinSoc']) \
-    #                               * self.settings['StrongThrottleBuffer']\
-    #                               / (self.settings['StrongThrottleMaxSoc'] - self.settings['StrongThrottleMinSoc'])
-    #         self.powerlimit = self.dbusservices['L1OutPower']['Value'] - strongthrottlevalue
-    #         mainlogger.debug('Strong throttling active')
-    #     # Prevent the powerlimit from being larger than the max inverter power or negative
-    #     if self.powerlimit > solartotals['L1']['MaxPower']:
-    #         self.powerlimit = solartotals['L1']['MaxPower']
-    #     elif self.powerlimit < 0:
-    #         self.powerlimit = 0
-    #     mainlogger.debug('PV Powerlimit: %s' % self.powerlimit)
-    #
-    #     # set the fronius powerlimit for each inverter in proportion to the total power currently being produced
-    #     # Ensure inv_count is always at least 1
-    #     inv_count = max(len(self.pvservices['L1']['Inverters']), 1)
-    #     for inverter, invservices in self.pvservices['L1']['Inverters'].items():
-    #         if inverter not in self.unavailablepvinverters:
-    #             if solartotals['L1']['Power'] == 0:
-    #                 inverterpowerlimit = self.settings['ThrottleBuffer'] / inv_count
-    #             # Ensure that the throttle buffer gets distributed evenly between the inverters
-    #             elif not self.throttleactive:
-    #                 inverterpowerlimit = invservices['Power']['Value'] + \
-    #                                      self.settings['ThrottleBuffer'] / inv_count
-    #             else:
-    #                 inverterpowerlimit = self.powerlimit * (invservices['Power']['Value'] / solartotals['L1']['Power'])
-    #             self.set_value('PowerLimit', inverterpowerlimit, invservices)
-    #             mainlogger.debug('Setting inverter %s powerlimit to %s' % (inverter, inverterpowerlimit))
-
     def run(self):
 
-        # Do calcs manually
-        delta = datetime.datetime.now() - self.prevruntime
-        if delta >= datetime.timedelta(seconds=self.settings['MaxSleepTime'] - self.settings['LoopCheckTime']):
-            self.do_calcs()
-            mainlogger.warning('Manually running do_calcs')
+        # # Do calcs manually
+        # delta = datetime.datetime.now() - self.prevruntime
+        # if delta >= datetime.timedelta(seconds=self.settings['MaxSleepTime'] - self.settings['LoopCheckTime']):
+        self.do_calcs()
+            # mainlogger.warning('Manually running do_calcs')
         # Let this function run continually on the glib loop
         return True
 
 
     def do_calcs(self):
 
+        # Update the values
+        self.update_values()
+
         # Setup variables
         soc = self.dbusservices['Soc']['Value']
-
         mainlogger.debug('SOC: %s' % soc)
 
-        # Update the runtime variable
-        self.prevruntime = datetime.datetime.now()
+        total_pv_prod = 0
+        total_pv_capacity = 0
+        for phase in self.pvservices.keys():
+            for pv_inv in self.pvservices[phase]['Inverters'].values():
+                total_pv_prod+= pv_inv['Power']['Value']
+                total_pv_capacity += pv_inv['MaxPower']['Value']
 
-        # Calculate the amount to throttle
-        if soc <= self.settings['NoThrottleSoc']:
-            throttleamount = self.settings['NoThrottleBuffer']
-            mainlogger.debug(f'Soc is less than NoThrottleSoc using throttleamount of {throttleamount}')
-        elif soc <= self.settings['ThrottleMinSoc']:
-            throttleamount = self.settings['MinThrottleBuffer']
-            mainlogger.debug(f'Soc is less than ThrottleMinSoc using throttleamount of {throttleamount}')
-        else:
-            throttleamount = (soc - self.settings['ThrottleMinSoc']) \
-                             / (self.settings['ThrottleMaxSoc'] - self.settings['ThrottleMinSoc']) \
-                             * (self.settings['MaxThrottleBuffer'] - self.settings['MinThrottleBuffer']) \
-                             + self.settings['MinThrottleBuffer']
-            mainlogger.debug(f'Soc is more than {self.settings["ThrottleMinSoc"]} using throttleamount of {throttleamount}')
-
+        consumption = total_pv_prod
         for phase in self.vicservices.keys():
-            inv_count = max(len(self.pvservices[phase]['Inverters']), 1)
-            powerlimit = (self.vicservices[phase]['OutPower']['Value'] - throttleamount) / inv_count
-            powerlimit = max(powerlimit, 0)
-            mainlogger.debug(f"With outpower of {self.vicservices[phase]['OutPower']['Value']} on {phase} and {inv_count} pv inverters the powerlimit is {powerlimit}")
-            for inverter, invservices in self.pvservices[phase]['Inverters'].items():
-                if inverter not in self.unavailablepvinverters:
-                    self.set_value('PowerLimit', powerlimit, invservices)
+            consumption += self.vicservices[phase]['OutPower']['Value']
+
+        excess_pv = max(0, total_pv_prod - consumption)
+
+        if excess_pv > 0:
+            # Calculate the amount to throttle
+            if soc < self.settings['NoThrottleSoc']:
+                total_pv_powerlimit = min(consumption + self.settings['BatteryMaxCharge'], total_pv_capacity)
+                mainlogger.debug(f'Soc is less than NoThrottleSoc {total_pv_powerlimit=}')
+            else:
+                total_pv_powerlimit = (((soc - self.settings['NoThrottleSoc'])
+                                       / (self.settings['ThrottleMaxSoc'] - self.settings['NoThrottleSoc']))
+                                       * excess_pv
+                                       + consumption)
+                mainlogger.debug(f'Soc is more than {self.settings["NoThrottleSoc"]} {total_pv_powerlimit=}')
+
+            for phase in self.pvservices.keys():
+                # for
+                # inv_count = max(len(self.pvservices[phase]['Inverters']), 1)
+                # powerlimit = (self.vicservices[phase]['OutPower']['Value'] - throttleamount) / inv_count
+                # powerlimit = max(powerlimit, 0)
+                # mainlogger.debug(f"With outpower of {self.vicservices[phase]['OutPower']['Value']} on {phase} and {inv_count} pv inverters the powerlimit is {powerlimit}")
+                for inverter, invservices in self.pvservices[phase]['Inverters'].items():
+                    inv_contribution = invservices['MaxPower']['Value'] / total_pv_capacity
+                    powerlimit = max(0,total_pv_powerlimit * inv_contribution)
+                    if inverter not in self.unavailablepvinverters:
+                        self.set_value('PowerLimit', powerlimit, invservices)
 
 
         # Rescan the services if the correct amount of time has elapsed

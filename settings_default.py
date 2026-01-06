@@ -2,15 +2,12 @@ import datetime
 import copy
 
 settingsdict = {
-    'MaxSleepTime': 5,
     'LoopCheckTime': 1,
     'NoThrottleSoc': 96,
-    'NoThrottleBuffer': -1000,
     'MinThrottleBuffer': 0,
-    'ThrottleMinSoc': 97,
     'ThrottleMaxSoc': 99,  # This needs to be more than ThrottleMinSoc
-    'MaxThrottleBuffer': 5000,  # This needs to be more than MinThrottleBuffer
     'RescanServiceInterval': datetime.timedelta(minutes=1),
+    'BatteryMaxCharge': 10000,
 }
 
 servicesdict = {
@@ -26,7 +23,7 @@ servicesdict = {
             'Path': "/Dc/Battery/Soc",
             'Proxy': object,
             'Value': 80},
-    'InputSource': {'Service': "com.victronenergy.vebus.ttyS4",
+    'InputSource': {'Service': "com.victronenergy.vebus.tty01",
                     'Path': "/Ac/ActiveIn/ActiveInput",
                     'Proxy': object,
                     'Value': 0},
@@ -34,21 +31,12 @@ servicesdict = {
 
 vicdict = {
     'L1': {
-            'InPower': {'Service': "com.victronenergy.vebus.ttyS4",
+            'InPower': {'Service': "com.victronenergy.vebus.tty01",
                           'Path': "/Ac/ActiveIn/L1/P",
                           'Proxy': object,
                           'Value': 0},
-            'OutPower': {'Service': "com.victronenergy.system",
-                           'Path': "/Ac/Consumption/L1/Power",
-                           'Proxy': object,
-                           'Value': 0}},
-    'L2': {
-            'InPower': {'Service': "com.victronenergy.vebus.ttyS4",
-                          'Path': "/Ac/ActiveIn/L2/P",
-                          'Proxy': object,
-                          'Value': 0},
-            'OutPower': {'Service': "com.victronenergy.system",
-                           'Path': "/Ac/Consumption/L2/Power",
+            'OutPower': {'Service': "com.victronenergy.vebus.tty01",
+                           'Path': "/Ac/Out/L1/P",
                            'Proxy': object,
                            'Value': 0}},
 }
@@ -56,10 +44,6 @@ vicdict = {
 pvdict = {
     'L1': {
         'InverterList': ['pv_76_1148833'], # This should look something like this: [pv_77_1028252, pv_77_1028251]
-        'Inverters': {},
-    },
-    'L2': {
-        'InverterList': ['pv_76_1148698'], # This should look something like this: [pv_77_1028252, pv_77_1028251]
         'Inverters': {},
     },
 }
