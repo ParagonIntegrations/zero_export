@@ -86,6 +86,8 @@ class ExportController(object):
                     mainlogger.debug(e)
                     self.unavailablepvinverters.append(inverter)
 
+        self.rescan_service_time = datetime.datetime.now() + self.settings['RescanServiceInterval']
+
     def update_values(self):
 
         # Update the dbusservices dictionary
@@ -227,7 +229,6 @@ class ExportController(object):
             self.unavailableservices = []
             self.unavailablepvinverters = []
             self.setup_dbus_services()
-            self.rescan_service_time = datetime.datetime.now() + self.settings['RescanServiceInterval']
 
 
 if __name__ == "__main__":
