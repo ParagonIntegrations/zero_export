@@ -5,7 +5,7 @@ settingsdict = {
     'LoopCheckTime': 1,
     'NoThrottleSoc': 95,
     'MinThrottleBuffer': 0,
-    'ThrottleMaxSoc': 97,  # This needs to be more than ThrottleMinSoc
+    'ThrottleMaxSoc': 97,
     'RescanServiceInterval': datetime.timedelta(minutes=1),
     'BatteryMaxCharge': 10000,
 }
@@ -23,7 +23,7 @@ servicesdict = {
             'Path': "/Dc/Battery/Soc",
             'Proxy': object,
             'Value': 80},
-    'InputSource': {'Service': "com.victronenergy.vebus.tty01",
+    'InputSource': {'Service': "com.victronenergy.vebus.ttyO1",
                     'Path': "/Ac/ActiveIn/ActiveInput",
                     'Proxy': object,
                     'Value': 0},
@@ -31,11 +31,11 @@ servicesdict = {
 
 vicdict = {
     'L1': {
-            'InPower': {'Service': "com.victronenergy.vebus.tty01",
+            'InPower': {'Service': "com.victronenergy.vebus.ttyO1",
                           'Path': "/Ac/ActiveIn/L1/P",
                           'Proxy': object,
                           'Value': 0},
-            'OutPower': {'Service': "com.victronenergy.vebus.tty01",
+            'OutPower': {'Service': "com.victronenergy.vebus.ttyO1",
                            'Path': "/Ac/Out/L1/P",
                            'Proxy': object,
                            'Value': 0}},
@@ -43,7 +43,7 @@ vicdict = {
 
 pvdict = {
     'L1': {
-        'InverterList': ['pv_76_1148833'], # This should look something like this: [pv_77_1028252, pv_77_1028251]
+        'InverterList': ['pv_77_1064614'], # This should look something like this: [pv_77_1028252, pv_77_1028251]
         'Inverters': {},
     },
 }

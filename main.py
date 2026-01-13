@@ -11,7 +11,7 @@ import datetime
 import logging
 import copy
 from logging.handlers import RotatingFileHandler
-from settings import settingsdict, servicesdict, vicdict, pvdict, donotcalclist # Change this for production
+from settings import settingsdict, servicesdict, vicdict, pvdict # Change this for production
 
 sys.path.insert(1, os.path.join(os.path.dirname(__file__), 'ext', 'velib_python'))
 from vedbus import VeDbusItemImport
@@ -27,7 +27,6 @@ class ExportController(object):
         self.dbusservices = copy.deepcopy(servicesdict)
         self.vicservices = copy.deepcopy(vicdict)
         self.pvservices = copy.deepcopy(pvdict)
-        self.donotcalc = copy.deepcopy(donotcalclist)
 
         self.prevruntime = datetime.datetime.now()
         self.unavailableservices = []
@@ -47,27 +46,29 @@ class ExportController(object):
                     bus=self.bus,
                     serviceName=self.dbusservices[service]['Service'],
                     path=self.dbusservices[service]['Path'],
-                    eventCallback=self.update_values,
+                    eventCallback=None,
                     createsignal=True)
-            except:
+            except Exception as e:
                 mainlogger.error('Exception in setting up dbus service %s' % service)
+                mainlogger.debug(e)
                 self.unavailableservices.append(service)
 
         # Also set up the victron inverters
         for line in self.vicservices:
-                try:
-                    for service in self.vicservices[line].keys():
-                        self.vicservices[line][service]['Proxy'] = VeDbusItemImport(
-                            bus=self.bus,
-                            serviceName=self.vicservices[line][service]['Service'],
-                            path=self.vicservices[line][service]['Path'],
-                            eventCallback=None,
-                            createsignal=True)
-                except:
-                    mainlogger.error('Exception in setting up victron inverter on %s' % line)
-                    self.unavailablevicservices.append(line)
-                    mainlogger.debug(f'line: {line}, service {service}.')
-                    mainlogger.debug(f'{self.vicservices}')
+            try:
+                for service in self.vicservices[line].keys():
+                    self.vicservices[line][service]['Proxy'] = VeDbusItemImport(
+                        bus=self.bus,
+                        serviceName=self.vicservices[line][service]['Service'],
+                        path=self.vicservices[line][service]['Path'],
+                        eventCallback=None,
+                        createsignal=True)
+            except Exception as e:
+                mainlogger.error('Exception in setting up victron inverter on %s' % line)
+                mainlogger.debug(e)
+                self.unavailablevicservices.append(line)
+                mainlogger.debug(f'line: {line}, service {service}.')
+                mainlogger.debug(f'{self.vicservices}')
 
         # Also set up the pv inverter services
         for line in self.pvservices:
@@ -80,8 +81,9 @@ class ExportController(object):
                             path=invservices[service]['Path'],
                             eventCallback=None,
                             createsignal=True)
-                except:
+                except Exception as e:
                     mainlogger.error('Exception in setting up pv inverter %s' % inverter)
+                    mainlogger.debug(e)
                     self.unavailablepvinverters.append(inverter)
 
     def update_values(self):
@@ -91,8 +93,9 @@ class ExportController(object):
             if service not in self.unavailableservices:
                 try:
                     self.dbusservices[service]['Value'] = self.dbusservices[service]['Proxy'].get_value()
-                except dbus.DBusException:
+                except dbus.DBusException as e:
                     mainlogger.warning('Exception in getting dbus service %s' % service)
+                    mainlogger.debug(e)
                     self.dbusservices[service]['Value'] = servicesdict[service]['Value']
                 try:
                     self.dbusservices[service]['Value'] *= 1
@@ -107,8 +110,9 @@ class ExportController(object):
                 for service in self.vicservices[line].keys():
                     try:
                         self.vicservices[line][service]['Value'] = self.vicservices[line][service]['Proxy'].get_value()
-                    except dbus.DBusException:
+                    except dbus.DBusException as e:
                         mainlogger.warning('Exception in getting dbus service %s' % service)
+                        mainlogger.debug(e)
                         self.vicservices[line][service]['Value'] = vicdict[line][service]['Value']
                     try:
                         self.vicservices[line][service]['Value'] *= 1
@@ -124,8 +128,9 @@ class ExportController(object):
                     for service in invservices:
                         try:
                             invservices[service]['Value'] = invservices[service]['Proxy'].get_value()
-                        except dbus.DBusException:
+                        except dbus.DBusException as e:
                             mainlogger.warning('Exception in getting dbus service %s for %s' % (service, inverter))
+                            mainlogger.debug(e)
                             invservices[service]['Value'] = pvdict[line]['Inverters'][inverter][service]['Value']
                         try:
                             invservices[service]['Value'] *= 1
@@ -187,19 +192,22 @@ class ExportController(object):
             consumption += self.vicservices[phase]['OutPower']['Value']
 
         excess_pv = max(0, total_pv_prod - consumption)
-        mainlogger.debug(f'{total_pv_prod=}, {total_pv_capacity=}, {consumption=}, {excess_pv=}')
+        mainlogger.debug(f'{total_pv_prod=:.2f}, {total_pv_capacity=:.2f}, {consumption=:.2f}, {excess_pv=:.2f}')
 
         if excess_pv > 0:
+            total_pv_powerlimit = 0
             # Calculate the amount to throttle
             if soc < self.settings['NoThrottleSoc']:
                 total_pv_powerlimit = min(consumption + self.settings['BatteryMaxCharge'], total_pv_capacity)
                 mainlogger.debug(f'Soc is less than NoThrottleSoc {total_pv_powerlimit=}')
-            else:
+            elif soc < self.settings['ThrottleMaxSoc']:
                 total_pv_powerlimit = (((soc - self.settings['NoThrottleSoc'])
                                        / (self.settings['ThrottleMaxSoc'] - self.settings['NoThrottleSoc']))
                                        * excess_pv
                                        + consumption)
                 mainlogger.debug(f'Soc is more than {self.settings["NoThrottleSoc"]} {total_pv_powerlimit=}')
+            else:
+                total_pv_powerlimit = 0
 
             for phase in self.pvservices.keys():
                 # for
@@ -224,21 +232,7 @@ class ExportController(object):
 
 if __name__ == "__main__":
 
-    # # Create a rotating logger
-    # def create_rotating_log(path):
-    #     # Create the logger
-    #     logger = logging.getLogger("Zero_Export")
-    #     logger.setLevel(logging.INFO)
-    #     # Create a rotating handler
-    #     handler = RotatingFileHandler(path, maxBytes=5242880, backupCount=1)
-    #     # Create a formatter and add to handler
-    #     formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-    #     handler.setFormatter(formatter)
-    #     # Add the handler to the logger
-    #     logger.addHandler(handler)
-    #     return logger
-
-    def create_rotating_log(path):
+    def create_rotating_log(path, debug):
         # Create the logger
         logger = logging.getLogger('Zero_Export')
         logger.setLevel(logging.DEBUG)
@@ -254,12 +248,23 @@ if __name__ == "__main__":
         consolehandler.setFormatter(formatter)
         # Add the filehandler and consolehandler to the logger
         logger.addHandler(filehandler)
-        # logger.addHandler(consolehandler)
+        if debug:
+            logger.addHandler(consolehandler)
         return logger
+
+    debug = False
+    if len(sys.argv) > 1:
+        arg = sys.argv[1]
+        if arg == 'debug':
+            debug = True
+        else:
+            print(f"Incorrect parameter found, expected debug found {arg}")
+            exit(0)
+
 
     # setup the logger
     log_file = "log.txt"
-    mainlogger = create_rotating_log(log_file)
+    mainlogger = create_rotating_log(log_file, debug)
     # Setup the dbus
     DBusGMainLoop(set_as_default=True)
     bus = dbus.SystemBus()
