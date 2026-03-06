@@ -3,11 +3,13 @@ import copy
 
 settingsdict = {
     'LoopCheckTime': 1,
-    'NoThrottleSoc': 95,
+    'NoThrottleSoc': 93,
     'MinThrottleBuffer': 0,
-    'ThrottleMaxSoc': 97,
+    'ThrottleToConsumptionSoc': 96,
+    'NoSolarSoc': 98,
     'RescanServiceInterval': datetime.timedelta(minutes=1),
     'BatteryMaxCharge': 10000,
+    'min_grid_power': 150,
 }
 
 servicesdict = {

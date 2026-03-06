@@ -1,1 +1,0 @@
-rsync -avz -e 'ssh -p 2201' ./ root@192.168.2.10:/home/root/zero_export --exclude .venv --exclude .git --exclude .idea

@@ -37,6 +37,7 @@ class ExportController(object):
 
         # Ensure this is always at the bottom
         self.setup_dbus_services()
+        mainlogger.debug(f'{self.unavailableservices=}')
 
     def setup_dbus_services(self):
 
@@ -183,46 +184,60 @@ class ExportController(object):
         mainlogger.debug('SOC: %s' % soc)
 
         total_pv_prod = 0
-        total_pv_capacity = 0
+        total_pv_capacity = 1
         for phase in self.pvservices.keys():
             for pv_inv in self.pvservices[phase]['Inverters'].values():
                 total_pv_prod+= pv_inv['Power']['Value']
                 total_pv_capacity += pv_inv['MaxPower']['Value']
 
         consumption = total_pv_prod
+        in_power = 0
         for phase in self.vicservices.keys():
             consumption += self.vicservices[phase]['OutPower']['Value']
-
+            in_power += self.vicservices[phase]['InPower']['Value']
         excess_pv = max(0, total_pv_prod - consumption)
+        theoretical_excess_pv = max(0, total_pv_capacity - consumption)
         mainlogger.debug(f'{total_pv_prod=:.2f}, {total_pv_capacity=:.2f}, {consumption=:.2f}, {excess_pv=:.2f}')
 
-        if excess_pv > 0:
-            total_pv_powerlimit = 0
-            # Calculate the amount to throttle
-            if soc < self.settings['NoThrottleSoc']:
-                total_pv_powerlimit = min(consumption + self.settings['BatteryMaxCharge'], total_pv_capacity)
-                mainlogger.debug(f'Soc is less than NoThrottleSoc {total_pv_powerlimit=}')
-            elif soc < self.settings['ThrottleMaxSoc']:
-                total_pv_powerlimit = (((soc - self.settings['NoThrottleSoc'])
-                                       / (self.settings['ThrottleMaxSoc'] - self.settings['NoThrottleSoc']))
-                                       * excess_pv
-                                       + consumption)
-                mainlogger.debug(f'Soc is more than {self.settings["NoThrottleSoc"]} {total_pv_powerlimit=}')
-            else:
-                total_pv_powerlimit = 0
+        total_pv_powerlimit = 0
+        # Calculate the amount to throttle
+        if soc < self.settings['NoThrottleSoc']:
+            total_pv_powerlimit = min(consumption + self.settings['BatteryMaxCharge'], total_pv_capacity)
+            mainlogger.debug(f'Soc is less than NoThrottleSoc {total_pv_powerlimit=:.2f}')
+        elif soc <= self.settings['ThrottleToConsumptionSoc']:
+            total_pv_powerlimit = (((self.settings['ThrottleToConsumptionSoc'] - soc)
+                                   / (self.settings['ThrottleToConsumptionSoc'] - self.settings['NoThrottleSoc']))
+                                   * theoretical_excess_pv
+                                   + consumption)
+            mainlogger.debug(f'Soc is more than {self.settings["NoThrottleSoc"]} {total_pv_powerlimit=:.2f}')
+        else:
+            total_pv_powerlimit = (((self.settings['NoSolarSoc'] - soc)
+                                   / (self.settings['NoSolarSoc'] - self.settings['ThrottleToConsumptionSoc']))
+                                   * consumption)
+            mainlogger.debug(f'Soc is more than {self.settings["ThrottleToConsumptionSoc"]} throttling pv to below consumption {total_pv_powerlimit=:.2f}')
 
-            for phase in self.pvservices.keys():
-                # for
-                # inv_count = max(len(self.pvservices[phase]['Inverters']), 1)
-                # powerlimit = (self.vicservices[phase]['OutPower']['Value'] - throttleamount) / inv_count
-                # powerlimit = max(powerlimit, 0)
-                # mainlogger.debug(f"With outpower of {self.vicservices[phase]['OutPower']['Value']} on {phase} and {inv_count} pv inverters the powerlimit is {powerlimit}")
-                for inverter, invservices in self.pvservices[phase]['Inverters'].items():
-                    inv_contribution = invservices['MaxPower']['Value'] / total_pv_capacity
-                    powerlimit = max(0,total_pv_powerlimit * inv_contribution)
-                    if inverter not in self.unavailablepvinverters:
-                        self.set_value('PowerLimit', powerlimit, invservices)
+        # If there is feedback, then the feedback should be throttled
+        inputsource = self.dbusservices['InputSource']['Value']
+        if inputsource != 240:
+            min_in_power = settingsdict.get('min_grid_power', 150)
+            if in_power < min_in_power:
+                prevent_feedback_powerlimit = total_pv_prod + (in_power - min_in_power)
+                mainlogger.debug(
+                    f'Preventing feedback setting powerlimit to {prevent_feedback_powerlimit:.2f} {min_in_power=:.2f}, {in_power=:.2f}')
+                total_pv_powerlimit = prevent_feedback_powerlimit
 
+
+        for phase in self.pvservices.keys():
+            # for
+            # inv_count = max(len(self.pvservices[phase]['Inverters']), 1)
+            # powerlimit = (self.vicservices[phase]['OutPower']['Value'] - throttleamount) / inv_count
+            # powerlimit = max(powerlimit, 0)
+            # mainlogger.debug(f"With outpower of {self.vicservices[phase]['OutPower']['Value']} on {phase} and {inv_count} pv inverters the powerlimit is {powerlimit}")
+            for inverter, invservices in self.pvservices[phase]['Inverters'].items():
+                inv_contribution = invservices['MaxPower']['Value'] / total_pv_capacity
+                powerlimit = max(0,total_pv_powerlimit * inv_contribution)
+                if inverter not in self.unavailablepvinverters:
+                    self.set_value('PowerLimit', powerlimit, invservices)
 
         # Rescan the services if the correct amount of time has elapsed
         if datetime.datetime.now() >= self.rescan_service_time:

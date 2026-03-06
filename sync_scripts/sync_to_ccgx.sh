@@ -1,0 +1,2 @@
+#rsync -avz -e 'ssh -i ~/.ssh/id_ed25519 -p 2201' ./../ root@192.168.2.10:/home/root/zero_export --exclude .venv --exclude .git --exclude .idea --exclude sync_scripts
+rsync -avz ./../ molen67:/home/root/zero_export --exclude .venv --exclude .git --exclude .idea --exclude sync_scripts --exclude settings.py
