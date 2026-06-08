@@ -159,7 +159,7 @@ class ExportController(object):
                     path=dictionary[service]['Path'],
                     eventCallback=None,
                     createsignal=False).set_value(value)
-                mainlogger.debug(f'Successfully set {service} to value of {value}')
+                mainlogger.debug(f'Successfully set {service} to value of {value:.2f}')
             except dbus.DBusException:
                 mainlogger.warning('Exception in setting dbus service %s' % service)
 
@@ -182,6 +182,13 @@ class ExportController(object):
         # Setup variables
         soc = self.dbusservices['Soc']['Value']
         mainlogger.debug('SOC: %s' % soc)
+        battery_voltage=self.dbusservices['BatteryVoltage']['Value']
+        battery_charge_current_limit=self.dbusservices['ChargeCurrentLimit']['Value']
+        max_charge = min(
+            self.settings['BatteryMaxCharge'],
+            battery_voltage * battery_charge_current_limit
+        )
+        mainlogger.debug(f'{battery_voltage=:.2f}, {battery_charge_current_limit=:.2f}, {max_charge=:.2f}')
 
         total_pv_prod = 0
         total_pv_capacity = 1
@@ -202,7 +209,7 @@ class ExportController(object):
         total_pv_powerlimit = 0
         # Calculate the amount to throttle
         if soc < self.settings['NoThrottleSoc']:
-            total_pv_powerlimit = min(consumption + self.settings['BatteryMaxCharge'], total_pv_capacity)
+            total_pv_powerlimit = min(consumption + max_charge, total_pv_capacity)
             mainlogger.debug(f'Soc is less than NoThrottleSoc {total_pv_powerlimit=:.2f}')
         elif soc <= self.settings['ThrottleToConsumptionSoc']:
             total_pv_powerlimit = (((self.settings['ThrottleToConsumptionSoc'] - soc)
@@ -237,7 +244,11 @@ class ExportController(object):
                 inv_contribution = invservices['MaxPower']['Value'] / total_pv_capacity
                 powerlimit = max(0,total_pv_powerlimit * inv_contribution)
                 if inverter not in self.unavailablepvinverters:
-                    self.set_value('PowerLimit', powerlimit, invservices)
+                    # Assume invariant current value >= 0 and ramp_rate >= 0
+                    ramp_limited_powerlimit = min(
+                        invservices['Power']['Value'] + self.settings['pv_ramp_rate'],
+                        powerlimit)
+                    self.set_value('PowerLimit', ramp_limited_powerlimit, invservices)
 
         # Rescan the services if the correct amount of time has elapsed
         if datetime.datetime.now() >= self.rescan_service_time:

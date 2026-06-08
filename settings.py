@@ -10,6 +10,7 @@ settingsdict = {
     'RescanServiceInterval': datetime.timedelta(minutes=1),
     'BatteryMaxCharge': 10000,
     'min_grid_power': 150,
+    'pv_ramp_rate': 50,
 }
 
 servicesdict = {
@@ -29,6 +30,18 @@ servicesdict = {
                     'Path': "/Ac/ActiveIn/ActiveInput",
                     'Proxy': object,
                     'Value': 0},
+    'ChargeCurrentLimit': {
+        'Service': "com.victronenergy.battery.socketcan_can0",
+        'Path': "/Info/MaxChargeCurrent",
+        'Proxy': object,
+        'Value': 100
+    },
+    'BatteryVoltage': {
+        'Service': "com.victronenergy.battery.socketcan_can0",
+        'Path': "/Dc/0/Voltage",
+        'Proxy': object,
+        'Value': 52
+    },
 }
 
 vicdict = {
