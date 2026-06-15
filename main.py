@@ -213,14 +213,13 @@ class ExportController(object):
 
         # Setup variables
         soc = self.dbusservices['Soc']['Value']
-        mainlogger.debug('SOC: %s' % soc)
         battery_voltage=self.dbusservices['BatteryVoltage']['Value']
         battery_charge_current_limit=self.dbusservices['ChargeCurrentLimit']['Value']
         max_charge = min(
             self.settings['BatteryMaxCharge'],
             battery_voltage * battery_charge_current_limit
         )
-        mainlogger.debug(f'{battery_voltage=:.2f}, {battery_charge_current_limit=:.2f}, {max_charge=:.2f}')
+        mainlogger.debug(f'{soc=:.2f}, {battery_voltage=:.2f}, {battery_charge_current_limit=:.2f}, {max_charge=:.2f}')
 
         total_pv_prod = 0
         total_pv_capacity = 1
