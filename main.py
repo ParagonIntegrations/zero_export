@@ -222,12 +222,13 @@ class ExportController(object):
         mainlogger.debug(f'{soc=:.2f}, {battery_voltage=:.2f}, {battery_charge_current_limit=:.2f}, {max_charge=:.2f}')
 
         total_pv_prod = 0
-        total_pv_capacity = 1
+        total_pv_capacity = 0
         for phase in self.pvservices.keys():
             for pv_inv in self.pvservices[phase]['Inverters'].values():
                 total_pv_prod+= pv_inv['Power']['Value']
                 total_pv_capacity += pv_inv['MaxPower']['Value']
-
+        # This prevents a possible divide by zero error
+        total_pv_capacity = max(1, total_pv_capacity)
         consumption = total_pv_prod
         in_power = 0
         for phase in self.vicservices.keys():
