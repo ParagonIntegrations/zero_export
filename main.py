@@ -297,7 +297,7 @@ if __name__ == "__main__":
     debug = False
     if len(sys.argv) > 1:
         arg = sys.argv[1]
-        if arg == 'debug':
+        if arg == '--debug':
             debug = True
         else:
             print(f"Incorrect parameter found, expected debug found {arg}")
