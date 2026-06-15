@@ -283,15 +283,17 @@ if __name__ == "__main__":
         filehandler.setLevel(logging.INFO)
         # Create a streamhandler to print to console
         consolehandler = logging.StreamHandler()
-        consolehandler.setLevel(logging.DEBUG)
+        if debug:
+            consolehandler.setLevel(logging.DEBUG)
+        else:
+            consolehandler.setLevel(logging.INFO)
         # Create a formatter and add to filehandler and consolehandler
         formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
         filehandler.setFormatter(formatter)
         consolehandler.setFormatter(formatter)
         # Add the filehandler and consolehandler to the logger
         logger.addHandler(filehandler)
-        if debug:
-            logger.addHandler(consolehandler)
+        logger.addHandler(consolehandler)
         return logger
 
     debug = False
