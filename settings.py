@@ -9,8 +9,9 @@ settingsdict = {
     'NoSolarSoc': 98,
     'RescanServiceInterval': datetime.timedelta(minutes=1),
     'BatteryMaxCharge': 10000,
-    'min_grid_power': 150,
-    'pv_ramp_rate': 50,
+    'min_grid_power': 600,
+    'pv_ramp_rate': 100,
+    'HighPowerLevel': 8000
 }
 
 servicesdict = {
@@ -42,6 +43,18 @@ servicesdict = {
         'Proxy': object,
         'Value': 52
     },
+    'SystemMode': {
+        'Service': "com.victronenergy.vebus.ttyO1",
+        'Path': "/Mode",
+        'Proxy': object,
+        'Value': 3
+    },
+    'MinSoc': {
+        'Service': "com.victronenergy.settings",
+        'Path': "/Settings/CGwacs/BatteryLife/MinimumSocLimit",
+        'Proxy': object,
+        'Value': 90
+    }
 }
 
 vicdict = {

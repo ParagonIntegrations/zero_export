@@ -8,6 +8,8 @@ import time
 import os
 import sys
 import datetime
+from typing import Callable, List, Any, Dict
+from enum import Enum, auto
 import logging
 import copy
 from logging.handlers import RotatingFileHandler
@@ -15,6 +17,89 @@ from settings import settingsdict, servicesdict, vicdict, pvdict # Change this f
 
 sys.path.insert(1, os.path.join(os.path.dirname(__file__), 'ext', 'velib_python'))
 from vedbus import VeDbusItemImport
+
+# class ManagedTimer:
+#     def __init__(self, target_time: datetime.datetime, callback: Callable, args: tuple = (), kwargs: dict = None):
+#         self.target_time = target_time
+#         self.callback = callback
+#         self.args = args
+#         self.kwargs = kwargs if kwargs is not None else {}
+#
+#     def is_expired(self) -> bool:
+#         """Checks if the target time has been reached or passed."""
+#         return datetime.datetime.now() >= self.target_time
+#
+#
+# class TimerManager:
+#     def __init__(self):
+#         self.timers: List[ManagedTimer] = []
+#
+#     def add_timer(self, target_time: datetime.datetime, callback: Callable, *args, **kwargs):
+#         """Adds a new timer to the managed list."""
+#         timer = ManagedTimer(target_time, callback, args, kwargs)
+#         self.timers.append(timer)
+#
+#     def poll(self):
+#         """
+#         Checks all timers.
+#         Fires expired ones and removes them from the active list.
+#         """
+#         # Filter out timers that have expired, running their callbacks along the way
+#         remaining_timers = []
+#
+#         for timer in self.timers:
+#             if timer.is_expired():
+#                 # Execute the callback immediately on the main thread
+#                 timer.callback(*timer.args, **timer.kwargs)
+#             else:
+#                 remaining_timers.append(timer)
+#
+#         # Keep only the unexpired timers
+#         self.timers = remaining_timers
+#
+#     def __len__(self) -> int:
+#         """Returns the number of active pending timers."""
+#         return len(self.timers)
+
+class InverterState(Enum):
+    DISCONNECT = auto()
+    CONNECT = auto()
+    REMAIN = auto()
+
+class DisconnectManager:
+
+    def __init__(self, high_power_timeout = datetime.timedelta(minutes=10), export_limit = 3, export_time = datetime.timedelta(minutes=1)):
+        self._high_power_timeout = high_power_timeout
+        self._high_power_reconnect_time = datetime.datetime.now() - high_power_timeout
+        self._export_limit = export_limit
+        self._export_time = export_time
+        self._export_history: List[datetime.datetime] = []
+
+    def register_high_power(self):
+        self._high_power_reconnect_time = datetime.datetime.now() + self._high_power_timeout
+
+    def register_export(self):
+        self._export_history.append(datetime.datetime.now())
+
+    def _in_high_power_timeout(self) -> bool:
+        return datetime.datetime.now() <= self._high_power_reconnect_time
+
+    def _export_limit_exceeded(self) -> bool:
+        filtered_list = []
+        cutoff_time = datetime.datetime.now() - self._export_time
+        for export_time in self._export_history:
+            if export_time > cutoff_time:
+                filtered_list.append(export_time)
+        self._export_history = filtered_list
+        return len(filtered_list) >= self._export_limit
+
+    def get_action(self, low_soc: bool) -> InverterState:
+        if low_soc | self._in_high_power_timeout():
+            return InverterState.CONNECT
+        if self._export_limit_exceeded():
+            return InverterState.DISCONNECT
+        return InverterState.REMAIN
+
 
 # Systemcontroller for python 3
 class ExportController(object):
@@ -29,6 +114,7 @@ class ExportController(object):
         self.pvservices = copy.deepcopy(pvdict)
 
         self.prevruntime = datetime.datetime.now()
+        self.disconnect_manager = DisconnectManager()
         self.unavailableservices = []
         self.unavailablepvinverters = []
         self.unavailablevicservices = []
@@ -40,7 +126,8 @@ class ExportController(object):
         mainlogger.debug(f'{self.unavailableservices=}')
 
     def setup_dbus_services(self):
-
+        self.unavailableservices = []
+        self.unavailablepvinverters = []
         for service in self.dbusservices:
             try:
                 self.dbusservices[service]['Proxy'] = VeDbusItemImport(
@@ -200,7 +287,7 @@ class ExportController(object):
         battery_throttle_msg = ""
         if pv_limit > power_consumption_capacity:
             pv_limit = power_consumption_capacity
-            battery_throttle_msg = "and prevent battery overcharge"
+            battery_throttle_msg = " and prevent battery overcharge"
 
         debug_msg = regime_msg + battery_throttle_msg + f', {pv_limit=:.2f}'
         return pv_limit, debug_msg
@@ -208,10 +295,14 @@ class ExportController(object):
 
     def do_calcs(self):
 
+        debug_info_msgs = []
+
         # Update the values
         self.update_values()
 
         # Setup variables
+        system_mode = self.dbusservices['SystemMode']['Value']
+        min_soc = self.dbusservices['MinSoc']['Value']
         soc = self.dbusservices['Soc']['Value']
         battery_voltage=self.dbusservices['BatteryVoltage']['Value']
         battery_charge_current_limit=self.dbusservices['ChargeCurrentLimit']['Value']
@@ -219,7 +310,7 @@ class ExportController(object):
             self.settings['BatteryMaxCharge'],
             battery_voltage * battery_charge_current_limit
         )
-        mainlogger.debug(f'{soc=:.2f}, {battery_voltage=:.2f}, {battery_charge_current_limit=:.2f}, {max_charge=:.2f}')
+        debug_info_msgs += [f'{soc=:.2f}, {battery_voltage=:.2f}, {battery_charge_current_limit=:.2f}, {max_charge=:.2f}']
 
         total_pv_prod = 0
         total_pv_capacity = 0
@@ -235,10 +326,12 @@ class ExportController(object):
             consumption += self.vicservices[phase]['OutPower']['Value']
             in_power += self.vicservices[phase]['InPower']['Value']
         excess_pv = max(0, total_pv_prod - consumption)
+        debug_info_msgs += [f'{total_pv_prod=:.2f}, {total_pv_capacity=:.2f}, {in_power=:.2f}, {consumption=:.2f}, {excess_pv=:.2f}']
 
-        mainlogger.debug(f'{total_pv_prod=:.2f}, {total_pv_capacity=:.2f}, {consumption=:.2f}, {excess_pv=:.2f}')
-
+        if consumption >= self.settings['HighPowerLevel']:
+            self.disconnect_manager.register_high_power()
         input_source = self.dbusservices['InputSource']['Value']
+        # Check if connected to the grid
         if input_source != 240:
             min_in_power = settingsdict.get('min_grid_power', 150)
         else:
@@ -251,7 +344,7 @@ class ExportController(object):
             soc,
             total_pv_capacity
         )
-        mainlogger.debug(throttle_msg)
+        debug_info_msgs += [throttle_msg]
 
         for phase in self.pvservices.keys():
             for inverter, invservices in self.pvservices[phase]['Inverters'].items():
@@ -261,14 +354,36 @@ class ExportController(object):
                     # Assume invariant current value >= 0 and ramp_rate >= 0
                     ramp_limited_powerlimit = invservices['Power']['Value'] + self.settings['pv_ramp_rate']
                     if powerlimit > ramp_limited_powerlimit:
-                        mainlogger.debug(f'Limiting inverter due to ramp limit from {powerlimit:.2f} to {ramp_limited_powerlimit:.2f}')
+                        debug_info_msgs += [f'Limiting inverter due to ramp limit from {powerlimit:.2f} to {ramp_limited_powerlimit:.2f}']
                         powerlimit = ramp_limited_powerlimit
                     self.set_value('PowerLimit', powerlimit, invservices)
 
+        if in_power < 0:
+            mainlogger.info(f'Export detected')
+            self.disconnect_manager.register_export()
+            for msg in debug_info_msgs:
+                mainlogger.info(msg)
+        else:
+            for msg in debug_info_msgs:
+                mainlogger.debug(msg)
+
+        # Check if we should connect or disconnect
+        low_soc = soc < min_soc
+        action = self.disconnect_manager.get_action(low_soc)
+        if action == InverterState.DISCONNECT:
+            if system_mode != 2:
+                self.set_value('SystemMode', 2)
+                mainlogger.info("Disconnecting from grid")
+        elif action == InverterState.CONNECT:
+            if system_mode != 3:
+                self.set_value('SystemMode', 3)
+                mainlogger.info("Connecting to grid")
+        elif action == InverterState.REMAIN:
+            pass
+
+
         # Rescan the services if the correct amount of time has elapsed
         if datetime.datetime.now() >= self.rescan_service_time:
-            self.unavailableservices = []
-            self.unavailablepvinverters = []
             self.setup_dbus_services()
 
 
